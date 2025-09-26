@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>중요도 및 시급성 평가</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h2, h3 {
+            text-align: center;
+        }
+        .final-notice {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #fffbe6;
+            border: 1px solid #ffe58f;
+            border-radius: 5px;
+            font-weight: bold;
+            text-align: center;
+            color: #d9534f;
+        }
+        .final-notice {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #fffbe6;
+            border: 1px solid #ffe58f;
+            border-radius: 5px;
+            font-weight: bold;
+            text-align: center;
+            color: #856404;
+        }
+        .email-copy-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px; /* 텍스트와 버튼 사이 간격 */
+            margin-top: 8px;
+        }
+        #copy-email-btn {
+            padding: 4px 10px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+            background-color: #007bff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        #copy-email-btn:hover {
+            background-color: #0056b3;
+        }
+
+        .statement {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+        .statement-text {
+            font-weight: bold;
+            margin-bottom: 15px;
+            display: block;
+        }
+        .rating-group {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+            gap: 15px;
+        }
+        .rating-group-label {
+            font-weight: bold;
+            flex-shrink: 0;
+            width: 55px; /* '중요도'/'시급성' 라벨 너비 고정 */
+        }
+        .rating-interface {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+        }
+        .rating-interface-label {
+            font-size: 0.9em;
+            color: #555;
+        }
+        .likert-scale {
+            display: flex;
+            justify-content: space-around;
+            flex-grow: 1;
+        }
+        .likert-scale label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        /* 커스텀 라디오 버튼 스타일 */
+        .likert-scale input[type="radio"] {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #ccc;
+            border-radius: 50%;
+            margin-top: 5px;
+            cursor: pointer;
+            position: relative;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        /* 선택된 라디오 버튼 스타일 */
+        .likert-scale input[type="radio"]:checked {
+            border-color: #007bff;
+        }
+        /* 선택 시 내부 원 표시 */
+        .likert-scale input[type="radio"]:checked::before {
+            content: '';
+            display: block;
+            width: 10px;
+            height: 10px;
+            background-color: #007bff;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .participant-form, .statements-container {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #eee;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        .form-grid div {
+            display: flex;
+            flex-direction: column;
+        }
+        .form-grid label {
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .form-grid input {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 95%;
+        }
+        #export-btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            background: #28a745;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 18px;
+            margin-top: 30px;
+            font-weight: bold;
+        }
+        #export-btn:hover {
+            background: #218838;
+        }
+        .validation-error {
+            border: 2px solid #dc3545;
+            background-color: #fffbe6;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="instructions">
+            <h2>1 단계: 사전 정리된 진술문에 관한 중요도와 시급성 평정</h2>
+            <p>다음 지침에 따라서, 제시한 총 51개의 진술문에 대해 Likert 5점 척도를 사용하여 중요도와 시급성 평정을 해주시면 됩니다.</p>
+            <p>1점은 매우 중요(시급)하지 않음, 5점은 매우 중요(시급)함으로 평정 부탁드립니다.</p>
+            
+            <h4>① 중요도, 시급성 평정</h4>
+            <ul>
+                <li>총 51개 진술문 각각에 대해, <strong>중요도와 시급성</strong>을 각각 1 ~ 5점 척도로 평가해주세요.</li>
+                <li>1점: 매우 낮음 / 5점: 매우 높음.</li>
+                <li>그룹화 없이, 각 진술문 단위별로 독립 평가를 진행합니다.</li>
+            </ul>
+            
+            <h4>② 참가자 정보 기입 후 엑셀 파일 추출</h4>
+            <ul>
+                <li>작업을 완료 하셨다면, 엑셀 파일 추출 버튼을 클릭하시여 파일을 다운로드 하시고, 아래 안내된 전자우편으로 송부 부탁드립니다.</li>
+            </ul>
+
+            <div class="final-notice">
+                <p>★ 작성을 완료하신 후, <strong>꼭</strong> 하단의 엑셀 파일 추출 버튼을 눌러서 다운 받으신 다음에 파일 공유 부탁드립니다. ★</p>
+                <div class="email-copy-container">
+                    <span>✉ 공유 해주실 전자우편: kibeum@korea.ac.kr</span>
+                    <button id="copy-email-btn">복사</button>
+                </div>
+            </div>
+
+        <div class="statements-container" id="statements-container">
+            <h3>평가 문항 (총 51개)</h3>
+            </div>
+
+        <div class="participant-form">
+            <h3>참여자 정보</h3>
+            <div class="form-grid">
+                <div><label for="name">성명:</label><input type="text" id="name" name="name"></div>
+                <div><label for="affiliation">소속기관명:</label><input type="text" id="affiliation" name="affiliation"></div>
+                <div><label for="service-duration">현기관에서의 근무 기간:</label><input type="text" id="service-duration" name="service-duration"></div>
+                <div><label for="birth-year">생년월일:</label><input type="text" id="birth-year" name="birth-year" placeholder="YYYYMMDD"></div>
+                <div><label for="contact">연락처(휴대전화):</label><input type="text" id="contact" name="contact"></div>
+                <div><label for="position">직급:</label><input type="text" id="position" name="position"></div>
+                <div><label for="major">전공 분야:</label><input type="text" id="major" name="major"></div>
+            </div>
+        </div>
+        
+        <button id="export-btn">작성 완료 및 엑셀 파일로 추출</button>
+    </div>
+
+    <script>
+        // --- DATA ---
+        const statements = [
+             { id: 1, text: "1. 광주동구 스마트 건강도시는 참여하는 동구 구민을 위한 것이다." }, { id: 2, text: "2. 광주동구 스마트 건강도시는 스마트 기기를 이용해 예측하고 행동할 수 있는 곳이다." }, { id: 3, text: "3. 광주동구 스마트 건강도시는 자연이 치유하는 것이다." }, { id: 4, text: "4. 광주동구 스마트 건강도시는 스마트 기술을 통한 건강혁신을 촉진하는 것이다." }, { id: 5, text: "5. 광주동구 스마트 건강도시는 AI(인공지능) 디지털 헬스케어를 포함하는 것이다." }, { id: 6, text: "6. 광주동구 스마트 건강도시는 ICT(정보통신기술) 기반으로 건강을 관리하는 것이다." }, { id: 7, text: "7. 광주동구 스마트 건강도시는 독거가구를 관리할 수 있는 시스템(AI 활용) (고독사, 외로움 등 예방) 이다." }, { id: 8, text: "8. 광주동구 스마트 건강도시는 도로 블랙홀 등 사전 예측으로 사고 예방 시스템(예. \"땅꺼짐이 ㅇㅇ지역에 예측되니 그 지역 지날 때는 주의를 요한다\" 등) 이다." }, { id: 9, text: "9. 광주동구 스마트 건강도시는 스마트기기에 익숙하지 않은 사람들이 사용할 수 있는 간편기기 개발해 간단한 교육으로 사용할 수 있도록 하는 것이다." }, { id: 10, text: "10. 광주동구 스마트 건강도시는 건강회복력이 풍부한 곳이다." }, { id: 11, text: "11. 광주동구 스마트 건강도시는 개인(가족) 맞춤형이다." }, { id: 12, text: "12. 광주동구 스마트 건강도시는 사회적 접근성이 용이한 곳이다." }, { id: 13, text: "13. 광주동구 스마트 건강도시는 기후, 환경, 건강의 지속가능성을 확보하는 것이다." }, { id: 14, text: "14. 광주동구 스마트 건강도시는 공동체 회복이다." }, { id: 15, text: "15. 광주동구 스마트 건강도시는 지역문화와 함께 하는 것이다." }, { id: 16, text: "16. 광주동구 스마트 건강도시는 자연과 함께 하는 것이다." }, { id: 17, text: "17. 광주동구 스마트 건강도시는 연령에 상관없이 돌봄을 제공받는 것이다." }, { id: 18, text: "18. 광주동구 스마트 건강도시는 생활에 필요영역별 시스템으로 작동되는 곳이다." }, { id: 19, text: "19. 광주동구 스마트 건강도시는 스마트와 건강을 포괄하는 개념이다." }, { id: 20, text: "20. 광주동구 스마트 건강도시는 건강으로 가는 기회이다." }, { id: 21, text: "21. 광주동구 스마트 건강도시는 도시 안에서 환경, 복지, 건강, 의료 등 생활과 밀접한 것들이 해결되는 도시이다." }, { id: 22, text: "22. 광주동구 스마트 건강도시는 시간과 장소의 제약을 받지 않는 돌봄을 포함하는 것이다." }, { id: 23, text: "23. 광주동구 스마트 건강도시는 모두가 건강을 스스로 관리할 수 있는 도시이다." }, { id: 24, text: "24. 광주동구 스마트 건강도시는 질환의 경중정도에 상관없이 돌봄을 제공하는 것이다." }, { id: 25, text: "25. 광주동구 스마트 건강도시는 질병 예방 중심 서비스이다." }, { id: 26, text: "26. 광주동구 스마트 건강도시는 소득에 상관없이 돌봄을 제공받는 것이다." }, { id: 27, text: "27. 광주동구 스마트 건강도시는 사회적 격차 최소화이다." }, { id: 28, text: "28. 광주동구 스마트 건강도시는 보건의료서비스(급성기·회복기·만성 시스템) 체계화를 통해 환자의 접근성이 향상된 도시이다." }, { id: 29, text: "29. 광주동구 스마트 건강도시는 취약계층(고령층) 중심 공간환경이 조성된 곳이다." }, { id: 30, text: "30. 광주동구 스마트 건강도시는 국립공원 기반의 자연 녹지와 건강 연계성이 강화된 도시이다." }, { id: 31, text: "31. 광주동구 스마트 건강도시는 국립공원 기반의 자연 녹지와 건강 연계성이 강화된 곳이다." }, { id: 32, text: "32. 광주동구 스마트 건강도시는 주민 생활권과 보행 활동 동선이 보장된 곳이다." }, { id: 33, text: "33. 광주동구 스마트 건강도시는 주민 생활권과 보행 활동 동선이 보장된 곳이다." }, { id: 34, text: "34. 광주동구 스마트 건강도시는 교통의 연결성과 접근성이 좋은 곳이다." }, { id: 35, text: "35. 광주동구 스마트 건강도시는 지역사회가 가진 물리적 자원과 돌봄제도를 유기적으로 연결하는 곳이다." }, { id: 36, text: "36. 광주동구 스마트 건강도시는 복지 제도의 중복 없이 빈틈을 채워나가는 도시이다." }, { id: 37, text: "37. 광주동구 스마트 건강도시는 주민 건강 증진을 위한 보행 친화적 공간 조성을 중시하는 도시이다." }, { id: 38, text: "38. 광주동구 스마트 건강도시는 주민 건강 증진을 위한 보행 친화적 공간 조성을 중시하는 도시이다." }, { id: 39, text: "39. 광주동구 스마트 건강도시는 실천 가능한 전략을 중시하며 발전하는 것이다." }, { id: 40, text: "40. 광주동구 스마트 건강도시는 기후위기에 대응해 재해 예방과 주민 안전을 최우선적으로 고려하며, 회복력 있는 물리적 환경을 구축하는 곳이다." }, { id: 41, text: "41. 광주동구 스마트 건강도시는 스마트 기술의 적용 범위를 명확히 설정하고. 디지털 포용을 우선하는 공간이다." }, { id: 42, text: "42. 광주동구 스마트 건강도시는 스마트 기술의 적용 범위를 명확히 설정하고. 디지털 포용을 우선하는 공간이다." }, { id: 43, text: "43. 광주동구 스마트 건강도시는 배리어 프리 환경을 조성하여 소외된 사람이 없는 포용적 건강 환경이다." }, { id: 44, text: "44. 광주동구 스마트 건강도시는 배리어 프리 환경을 조성하여 소외된 사람이 없는 포용적 건강 환경이다." }, { id: 45, text: "45. 광주동구 스마트 건강도시는 가정 내 환경과 돌봄 여건을 보완해 안전한 재가생활이 가능한 도시이다." }, { id: 46, text: "46. 광주동구 스마트 건강도시는 고령층 등 디지털 취약계층을 위해 디지털 기술의 진입장벽이 최소화된 공간이다." }, { id: 47, text: "47. 광주동구 스마트 건강도시는 민간기업이 손쉽게 참여하고 협력할 수 있는 공공 시스템이 구축된 도시이다." }, { id: 48, text: "48. 광주동구 스마트 건강도시는 건강 복합적인 영역을 고려하여 주민 건강을 지키는 친환경적 공간이다." }, { id: 49, text: "49. 광주동구 스마트 건강도시는 기후 적응 인프라 확충을 통해 건강을 통합적으로 고려하는 도시이다." }, { id: 50, text: "50. 광주동구 스마트 건강도시는 이용자 중심 맞춤형 교통 복지를 실현하는 체계이다." }, { id: 51, text: "51. 광주동구 스마트 건강도시는 예산 문제 등 어려움을 극복하며 건강도시 사업의 연결성이 유지되는 도시이다." }
+        ];
+
+        // --- ELEMENTS ---
+        const statementsContainer = document.getElementById('statements-container');
+        const exportBtn = document.getElementById('export-btn');
+
+        // --- FUNCTIONS ---
+
+        // 새로운 평가 UI HTML 생성 함수
+        function createRatingInterface(statementId, type) {
+            let scaleHtml = `
+                <div class="rating-interface">
+                    <span class="rating-interface-label">낮음</span>
+                    <div class="likert-scale">
+            `;
+
+            for (let i = 1; i <= 5; i++) {
+                scaleHtml += `
+                    <label>
+                        ${i}
+                        <input type="radio" name="${type}-${statementId}" value="${i}">
+                    </label>
+                `;
+            }
+
+            scaleHtml += `
+                    </div>
+                    <span class="rating-interface-label">높음</span>
+                </div>
+            `;
+            return scaleHtml;
+        }
+
+        // 진술문 목록을 화면에 렌더링하는 함수
+        function renderStatements() {
+            statements.forEach(statement => {
+                const div = document.createElement('div');
+                div.className = 'statement';
+                div.id = `statement-${statement.id}`;
+                
+                div.innerHTML = `
+                    <span class="statement-text">${statement.text}</span>
+                    <div class="rating-group">
+                        <span class="rating-group-label">중요도</span>
+                        ${createRatingInterface(statement.id, 'importance')}
+                    </div>
+                    <div class="rating-group">
+                        <span class="rating-group-label">시급성</span>
+                        ${createRatingInterface(statement.id, 'urgency')}
+                    </div>
+                `;
+                statementsContainer.appendChild(div);
+            });
+        }
+
+        // 엑셀 파일로 내보내는 함수
+        function exportToExcel() {
+            // 이전에 추가된 오류 표시 스타일 제거
+            document.querySelectorAll('.validation-error').forEach(el => el.classList.remove('validation-error'));
+
+            // 1. 참여자 정보 유효성 검사
+            const participantFields = [
+                'name', 'affiliation', 'service-duration', 'birth-year', 'contact', 'position', 'major'
+            ];
+            for (const fieldId of participantFields) {
+                const inputElement = document.getElementById(fieldId);
+                if (!inputElement.value.trim()) {
+                    alert('참여자 정보를 모두 입력해주세요.');
+                    inputElement.classList.add('validation-error');
+                    inputElement.focus();
+                    inputElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    return;
+                }
+            }
+
+            // 2. 진술문 평가 유효성 검사 및 데이터 수집
+            const resultsData = [];
+            for (const statement of statements) {
+                const importanceInput = document.querySelector(`input[name="importance-${statement.id}"]:checked`);
+                const urgencyInput = document.querySelector(`input[name="urgency-${statement.id}"]:checked`);
+
+                if (!importanceInput || !urgencyInput) {
+                    alert(`문항 ${statement.id}번의 평가가 완료되지 않았습니다. (중요도 또는 시급성)`);
+                    const statementElement = document.getElementById(`statement-${statement.id}`);
+                    statementElement.classList.add('validation-error');
+                    statementElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    return;
+                }
+
+                resultsData.push({
+                    '문항 ID': statement.id,
+                    '문항 내용': statement.text,
+                    '중요도 점수': parseInt(importanceInput.value),
+                    '시급성 점수': parseInt(urgencyInput.value),
+                });
+            }
+
+            // 3. 데이터 시트 생성 및 엑셀 파일 다운로드
+            const participantInfo = {
+                '성명': document.getElementById('name').value, 
+                '소속기관명': document.getElementById('affiliation').value, 
+                '현기관에서의 근무 기간': document.getElementById('service-duration').value, 
+                '생년월일': document.getElementById('birth-year').value, 
+                '연락처(휴대전화)': document.getElementById('contact').value, 
+                '직급': document.getElementById('position').value, 
+                '전공 분야': document.getElementById('major').value
+            };
+            const participantData = [participantInfo];
+
+            const wb = XLSX.utils.book_new(); // 새로운 워크북 생성
+            const wsResults = XLSX.utils.json_to_sheet(resultsData); // 평가 결과 시트
+            const wsParticipant = XLSX.utils.json_to_sheet(participantData); // 참여자 정보 시트
+
+            XLSX.utils.book_append_sheet(wb, wsResults, "평가 결과");
+            XLSX.utils.book_append_sheet(wb, wsParticipant, "참여자 정보");
+
+            XLSX.writeFile(wb, "Statement_Evaluation_Results.xlsx");
+            
+            alert("수고 많으셨습니다!");
+        }
+
+        // --- EVENT LISTENERS ---
+        exportBtn.addEventListener('click', exportToExcel);
+        // 이메일 복사 버튼 이벤트 리스너
+        const copyBtn = document.getElementById('copy-email-btn');
+        copyBtn.addEventListener('click', () => {
+            const email = 'kibeum@korea.ac.kr';
+    
+            navigator.clipboard.writeText(email).then(() => {
+                // 성공 시 버튼 텍스트 변경
+                const originalText = copyBtn.innerText;
+                copyBtn.innerText = '복사 완료!';
+                copyBtn.disabled = true;
+
+                // 2초 후에 원래대로 복귀
+                setTimeout(() => {
+                    copyBtn.innerText = originalText;
+                    copyBtn.disabled = false;
+                }, 2000);
+            }).catch(err => {
+                console.error('복사 실패:', err);
+                alert('이메일 복사에 실패했습니다.');
+            });
+        });
+
+        // --- INITIALIZATION ---
+        renderStatements();
+    </script>
+</body>
+</html>
